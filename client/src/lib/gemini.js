@@ -16,3 +16,14 @@ const genAI = new GoogleGenerativeAI(import.meta.env.VITE_GEMINI_PUBLIC_KEY);
 const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash", safetySetting });
 
 export default model;
+
+export async function askGemini(prompt) {
+  const res = await fetch("http://localhost:3000/api/gemini", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ prompt })
+  });
+
+  const data = await res.json();
+  return data.text;
+}
