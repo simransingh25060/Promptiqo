@@ -46,7 +46,7 @@ const NewPrompt = () => {
         let accumulatedText="";
         for await  (const chunk of result.stream) {
               const chunkText = chunk.text();
-              console.log(chunkText);
+            //   console.log(chunkText);
               accumulatedText += chunkText;
               setAnswer(accumulatedText);
         }
@@ -64,6 +64,7 @@ const NewPrompt = () => {
 
     await add(text);
     e.target.text.value = "";
+
    };
    
 
