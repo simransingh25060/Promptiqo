@@ -12,6 +12,8 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@clerk/clerk-sdk-node": "^4.13.23",
+    "@clerk/express": "^1.7.64",
     "@google/generative-ai": "^0.24.1",
     "cors": "^2.8.5",
     "express": "^5.2.1",
