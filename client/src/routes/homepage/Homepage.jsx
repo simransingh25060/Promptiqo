@@ -65,7 +65,7 @@ const Homepage = () => {
             </div>
          </div>
          <div className='terms'>
-            <img src="/logo.png" alt="" />
+            <img src="/Promptiqo.png" alt="" />
             <div className='links'>
                 <Link to="/">Terms of Service</Link>
                 <span>|</span>

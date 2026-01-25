@@ -71,6 +71,7 @@ app.get("/api/upload", (req, res) => {
 app.post("/api/chats",requireAuth(),async (req, res) => {
   const userId = req.auth.userId;
   const { text} = req.body
+  console.log(userId, text)
 
   try{
     //create a new chat
@@ -120,15 +121,28 @@ app.post("/api/chats",requireAuth(),async (req, res) => {
 
 app.get("/api/userchats", requireAuth(), async (req, res) => {
   const userId = req.auth.userId;
+  console.log(userId)
+
   try{
-    const userChats = UserChats.find({userId})
+    const userChats = await UserChats.find({userId})
 
     res.status(200).send(userChats[0].chats);
   } catch (err) {
     console.log(err);
     res.status(500).send("Error fetching userchats!")
-  }
-    
+  } 
+});
+
+app.get("/api/chats/:id", requireAuth(), async (req, res) => {
+  const userId = req.auth.userId;
+  try{
+    const chat = await Chat.findOne({ _id: req.params.id, userId})
+
+    res.status(200).send(chat);
+  } catch (err) {
+    console.log(err);
+    res.status(500).send("Error fetching chat!")
+  } 
 });
 
 app.use((err, req,res,next) => {
