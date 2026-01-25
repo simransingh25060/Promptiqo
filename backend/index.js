@@ -125,6 +125,9 @@ app.get("/api/userchats", requireAuth(), async (req, res) => {
 
   try{
     const userChats = await UserChats.find({userId})
+    if (!userChats || !userChats[0]) {
+      return res.status(200).send([]);
+    }
 
     res.status(200).send(userChats[0].chats);
   } catch (err) {
@@ -144,6 +147,35 @@ app.get("/api/chats/:id", requireAuth(), async (req, res) => {
     res.status(500).send("Error fetching chat!")
   } 
 });
+
+app.put("/api/chats/:id", requireAuth(), async (req, res) => {
+  const userId = req.auth.userId;
+
+  const {question, answer, img} = req.body;
+
+  const newItems = [
+    ...Chat(question
+      ? {role: "user", parts: [{text:question}], ...(img && {img})}
+      : []),
+    {role: "model", parts: [{ text: answer,}]}
+  ];
+
+  try{
+
+    const updatedChat = Chat.updateOne({_id: req.params.id, userId}, {
+      $push: {
+        history: {
+          $each: newItems,
+        }
+      }
+
+    })
+    res.status(200).send(updatedChat);
+  } catch (err) {
+    console.log(err);
+    res.status(500).send(" Error adding conversation!");
+  }
+})
 
 app.use((err, req,res,next) => {
   console.error(err.stack);
