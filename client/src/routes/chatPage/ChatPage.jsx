@@ -26,30 +26,31 @@ const ChatPage = () => {
             ? "Loading..."
             : error
             ? "Something went wrong!"
-            : data?.history?.map((message, i) => (
-                <>
-                {message.img && (
-                    <IKImage 
-                    key={i}
-                    urlEndpoint={import.meta.env.VITE_IMAGE_KIT_ENDPOINT}
-                    path={message.img}
-                    height="300"
-                    width="400"
-                    transformation={[{height:300, width: 400}]}
-                    loading= "lazy"
-                    lqip={{active: true, quality: 20 }}
-                    />
-                )}
-                <div 
-                className={
-                    message.role === "user" ? "message user" : "message"
-                    } 
-                    key={i}
-                    >
-                    <Markdown>{message.parts[0].text}</Markdown>
-                    </div>
-                    </>
-                    ))}
+                        : data?.history?.map((message, i) => {
+                            const key = message._id || `${message.role}-${i}`;
+                            return (
+                                <div key={key}>
+                                    {message.img && (
+                                        <IKImage
+                                            urlEndpoint={import.meta.env.VITE_IMAGE_KIT_ENDPOINT}
+                                            path={message.img}
+                                            height="300"
+                                            width="400"
+                                            transformation={[{ height: 300, width: 400 }]}
+                                            loading="lazy"
+                                            lqip={{ active: true, quality: 20 }}
+                                        />
+                                    )}
+                                    <div
+                                        className={
+                                            message.role === "user" ? "message user" : "message"
+                                        }
+                                    >
+                                        <Markdown>{message.parts[0].text}</Markdown>
+                                    </div>
+                                </div>
+                            );
+                        })}
                     
                     <NewPrompt data={data}/>
                     </div>
@@ -59,4 +60,4 @@ const ChatPage = () => {
 
 }
 
-export default ChatPage; 
+export default ChatPage;

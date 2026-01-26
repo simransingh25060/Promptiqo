@@ -70,70 +70,93 @@ app.get("/api/upload", (req, res) => {
 
 app.post("/api/chats",requireAuth(),async (req, res) => {
   const userId = req.auth.userId;
-  const { text} = req.body
-  console.log(userId, text)
+  const { text, img } = req.body;
+  console.log(userId, text);
 
-  try{
-    //create a new chat
-    const newChat = new Chat ({
+  try {
+    // 1. Call Gemini API for answer
+    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+    const result = await model.generateContent(text);
+    console.log('Gemini API result (new chat):', JSON.stringify(result, null, 2));
+    const answer = result.response.text();
+    console.log('Gemini answer (new chat):', answer);
+
+    // 2. Create a new chat with both user and model messages
+    const history = [
+      { role: "user", parts: [{ text }], ...(img && { img }) },
+      { role: "model", parts: [{ text: answer }] }
+    ];
+    const newChat = new Chat({
       userId: userId,
-      history: [{role:"user", parts:[{text}]}]
-    })
-    
+      history
+    });
     const savedChat = await newChat.save();
 
-    //check if user chat exist
-    const userChats = await UserChats.find({userId: userId});
-
-    if(!userChats.length) {
-      const newUserChats = new UserChats ({
+    // 3. Add to user's chat list only once
+    const userChats = await UserChats.findOne({ userId: userId });
+    if (!userChats) {
+      const newUserChats = new UserChats({
         userId: userId,
         chats: [
           {
-          _id: savedChat.id,
-          title: text.substring(0, 40),
-        }
+            _id: savedChat._id,
+            title: text.substring(0, 40),
+            createdAt: new Date()
+          }
         ]
       });
-
-      await newUserChats.save()
+      await newUserChats.save();
     } else {
-
-      await UserChats.updateOne(
-        {userId: userId},
-        {
-        $push:{
-          chats: {
-          _id:  savedChat._id,
-          title: text.substring(0, 40),
-        },
-      },
+      // Prevent duplicate chat entries
+      const exists = userChats.chats.some(c => c._id.toString() === savedChat._id.toString());
+      if (!exists) {
+        await UserChats.updateOne(
+          { userId: userId },
+          {
+            $push: {
+              chats: {
+                _id: savedChat._id,
+                title: text.substring(0, 40),
+                createdAt: new Date()
+              }
+            }
+          }
+        );
       }
-      );
-
-      res.status(201).send(newChat._id);
     }
-  } catch(err) {
-    console.log(err)
-    res.status(500).send("Error creating chat!")
-  } 
+
+    res.status(201).send(savedChat._id);
+  } catch (err) {
+    console.log(err);
+    res.status(500).send("Error creating chat!");
+  }
 });
 
 app.get("/api/userchats", requireAuth(), async (req, res) => {
   const userId = req.auth.userId;
   console.log(userId)
 
-  try{
-    const userChats = await UserChats.find({userId})
+  try {
+    const userChats = await UserChats.find({ userId });
     if (!userChats || !userChats[0]) {
       return res.status(200).send([]);
     }
+    const seen = new Set();
+    const uniqueChats = [];
+    const sortedChats = [...userChats[0].chats].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    for (const chat of sortedChats) {
+      if (!seen.has(chat._id.toString())) {
+        uniqueChats.push(chat);
+        seen.add(chat._id.toString());
+      }
+    }
 
-    res.status(200).send(userChats[0].chats);
+    console.log(uniqueChats)
+    res.status(200).send(uniqueChats.reverse());
   } catch (err) {
     console.log(err);
-    res.status(500).send("Error fetching userchats!")
-  } 
+    res.status(500).send("Error fetching userchats!");
+  }
 });
 
 app.get("/api/chats/:id", requireAuth(), async (req, res) => {
@@ -149,31 +172,44 @@ app.get("/api/chats/:id", requireAuth(), async (req, res) => {
 });
 
 app.put("/api/chats/:id", requireAuth(), async (req, res) => {
+
   const userId = req.auth.userId;
+  console.log(userId)
 
-  const {question, answer, img} = req.body;
+  const { question, img } = req.body;
+  if (!question) {
+    return res.status(400).json({ error: "Question is required" });
+  }
+  try {
+    // 1. Add user message to chat history
+    const userMsg = { role: "user", parts: [{ text: question }], ...(img && { img }) };
+    await Chat.updateOne({ _id: req.params.id, userId }, {
+      $push: { history: userMsg }
+    });
 
-  const newItems = [
-    ...Chat(question
-      ? {role: "user", parts: [{text:question}], ...(img && {img})}
-      : []),
-    {role: "model", parts: [{ text: answer,}]}
-  ];
+    // 2. Get full chat history for context (optional, can be used for Gemini context)
+    const chat = await Chat.findOne({ _id: req.params.id, userId });
 
-  try{
 
-    const updatedChat = Chat.updateOne({_id: req.params.id, userId}, {
-      $push: {
-        history: {
-          $each: newItems,
-        }
-      }
+    // 3. Call Gemini API for answer
+    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+    const result = await model.generateContent(question);
+    console.log('Gemini API result:', JSON.stringify(result, null, 2));
+    const answer = result.response.text();
+    console.log('Gemini answer:', answer);
 
-    })
-    res.status(200).send(updatedChat);
+    // 4. Add model answer to chat history
+    const modelMsg = { role: "model", parts: [{ text: answer }] };
+    await Chat.updateOne({ _id: req.params.id, userId }, {
+      $push: { history: modelMsg }
+    });
+
+    // 5. Return updated chat
+    const updatedChat = await Chat.findOne({ _id: req.params.id, userId });
+    res.status(200).json(updatedChat);
   } catch (err) {
     console.log(err);
-    res.status(500).send(" Error adding conversation!");
+    res.status(500).send("Error adding conversation!");
   }
 })
 
@@ -187,6 +223,3 @@ connect();
 app.listen(port, () => {
   console.log("Server is running on 3000");
 });
-
-
-
