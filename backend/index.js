@@ -223,3 +223,5 @@ connect();
 app.listen(port, () => {
   console.log("Server is running on 3000");
 });
+
+export default app;

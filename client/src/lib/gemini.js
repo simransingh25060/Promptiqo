@@ -18,7 +18,9 @@ const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash", safetySettin
 export default model;
 
 export async function askGemini(prompt) {
-  const res = await fetch("http://localhost:3000/api/gemini", {
+
+
+const res = await fetch(`${import.meta.env.VITE_API_URL}/api/gemini`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ prompt })
