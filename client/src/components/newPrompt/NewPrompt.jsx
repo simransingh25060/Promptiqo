@@ -5,8 +5,9 @@ import { IKImage } from "imagekitio-react";
 // ...existing code...
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "@clerk/clerk-react";
 
-const NewPrompt = ({data}) => {  
+const NewPrompt = ({data}) => {
     const [question, setQuestion] = useState("");
     const [answer, setAnswer] = useState("");
     const [img, setImg] = useState({
@@ -27,16 +28,19 @@ const NewPrompt = ({data}) => {
 
     const queryClient = useQueryClient();
     const navigate = useNavigate();
+    const { getToken } = useAuth();
 
     // For existing chat (PUT)
     const mutation = useMutation({
-        mutationFn: () => {
+        mutationFn: async () => {
+            const token = await getToken();
             return fetch(`${import.meta.env.VITE_API_URL}/api/chats/${data?._id}`,
                 {
                     method: "PUT",
                     credentials: "include",
                     headers: {
-                        "Content-Type": "application/json"
+                        "Content-Type": "application/json",
+                        Authorization: `Bearer ${token}`,
                     },
                     body: JSON.stringify({
                         question: question.length ? question : undefined,
@@ -69,11 +73,13 @@ const NewPrompt = ({data}) => {
             if (!data?._id) {
                 // New chat: POST, then redirect
                 try {
+                    const token = await getToken();
                     const res = await fetch(`${import.meta.env.VITE_API_URL}/api/chats`, {
                         method: "POST",
                         credentials: "include",
                         headers: {
-                            "Content-Type": "application/json"
+                            "Content-Type": "application/json",
+                            Authorization: `Bearer ${token}`,
                         },
                         body: JSON.stringify({ text })
                     });

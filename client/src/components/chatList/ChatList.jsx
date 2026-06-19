@@ -1,17 +1,25 @@
 import { Link } from "react-router-dom";
 import "./chatList.css";
 import { useQuery } from "@tanstack/react-query";
+import { useAuth } from "@clerk/clerk-react";
 
 const ChatList = () => {
 
+    const { getToken } = useAuth();
+
      const { isPending, error, data } = useQuery({
     queryKey: ['userChats'],
-    queryFn: () =>
-      fetch(`${import.meta.env.VITE_API_URL}/api/userchats`, {
-        credentials:"include",
+    queryFn: async () => {
+      const token = await getToken();
+      return fetch(`${import.meta.env.VITE_API_URL}/api/userchats`, {
+        credentials: "include",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
      }).then((res) =>
         res.json(),
-      ),
+      );
+    },
     });
 
     return (
@@ -27,15 +35,11 @@ const ChatList = () => {
           ? "Loading..."
           : error
           ? "Something went wrong!"
-          : data
-          ?.slice()
-          .reverse()
-          .map((chat) => (
-          <Link to={`/dashboard/chats/${chat._id}`} key={chat._id}>
-          {chat.title}
-          </Link>
-          ))
-          }
+          : data?.map((chat) => (
+              <Link to={`/dashboard/chats/${chat._id}`} key={chat._id}>
+                {chat.title}
+              </Link>
+            ))}
           
         </div>
         <hr/>
